@@ -10,15 +10,7 @@ echo "Instalando o Kea DHCP..."
 sudo dnf -y install kea
 
 
-echo "Verificando a instalação do Kea DHCP..."
-if ! command -v keactrl &> /dev/null
-then
-    echo "Kea DHCP não foi instalado corretamente. Abortando."
-    exit 1
-fi
-
-
-echo "Fazendo backup do arquivo de configuração original (se existir)..."
+echo "Fazendo backup do arquivo de configuração original
 sudo cp /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
 
 
@@ -90,11 +82,6 @@ chown root:kea /etc/kea/kea-dhcp4.conf
 chmod 640 /etc/kea/kea-dhcp4.conf
 
 
-echo "Criando diretório de logs..."
-mkdir -p /var/log/kea
-chown kea:kea /var/log/kea
-
-
 echo "Habilitando e iniciando o serviço Kea DHCP..."
 systemctl enable --now kea-dhcp4
 
@@ -110,6 +97,7 @@ echo "Habilitando a firewall"
 firewall-cmd --add-service=dhcp
 firewall-cmd --runtime-to-permanent
 
-echo  
+echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
 sudo ls -l /var/lib/kea
+
 
