@@ -1,14 +1,15 @@
 #!/bin/bash
 
-# Atualizar o sistema
+set -e
+
 echo "Atualizando o sistema..."
 sudo dnf -y update
 
-# Instalar o Kea DHCP
+
 echo "Instalando o Kea DHCP..."
 sudo dnf -y install kea
 
-# Verificar a instalação
+
 echo "Verificando a instalação do Kea DHCP..."
 if ! command -v keactrl &> /dev/null
 then
@@ -16,11 +17,11 @@ then
     exit 1
 fi
 
-# Backup do arquivo de configuração original (caso já exista)
-echo "Fazendo backup do arquivo de configuração original (se existir)..."
-sudo mv /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
 
-# Criar o arquivo de configuração do Kea DHCP
+echo "Fazendo backup do arquivo de configuração original (se existir)..."
+sudo cp /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
+
+
 echo "Criando o arquivo de configuração do Kea DHCP..."
 
 sudo cat > /etc/kea/kea-dhcp4.conf <<EOL
@@ -83,27 +84,32 @@ sudo cat > /etc/kea/kea-dhcp4.conf <<EOL
 }
 EOL
 
-# Alterar permissões e propriedade do arquivo de configuração
+
 echo "Alterando permissões e propriedade do arquivo de configuração..."
 chown root:kea /etc/kea/kea-dhcp4.conf
 chmod 640 /etc/kea/kea-dhcp4.conf
 
-# Criar diretório de logs (se não existir)
+
 echo "Criando diretório de logs..."
 mkdir -p /var/log/kea
 chown kea:kea /var/log/kea
 
-# Habilitar e iniciar o serviço do Kea DHCP
+
 echo "Habilitando e iniciando o serviço Kea DHCP..."
 systemctl enable --now kea-dhcp4
 
-# Verificar o status do serviço
-echo "Verificando o status do Kea DHCP..."
-systemctl status kea-dhcp4 | grep "Active"
 
-# Finalização
+echo "Verificando o status do Kea DHCP..."
+systemctl status kea-dhcp4 
+
+
 echo "Configuração do Kea DHCP concluída. O serviço está rodando."
 
-# Mostrar os logs para verificar se tudo está funcionando
-echo "Exibindo as últimas linhas dos logs do Kea..."
-tail -n 20 /var/log/kea/kea-dhcp4.log
+
+echo "Habilitando a firewall"
+firewall-cmd --add-service=dhcp
+firewall-cmd --runtime-to-permanent
+
+echo  
+sudo ls -l /var/lib/kea
+
