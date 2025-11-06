@@ -29,7 +29,7 @@ cat > "$CONF_FILE" << 'EOF'
 "Dhcp4": {
     "interfaces-config": {
         // specify network interfaces to listen on
-        "interfaces": [ "enp1s0" ]
+        "interfaces": [ "ens33" ]
     },
     // settings for expired-leases (follows are default)
     "expired-leases-processing": {
@@ -120,6 +120,7 @@ sleep 2
 echo "A visualizar leases"
 sudo cat /var/lib/kea/kea-leases4.csv
 sleep 2
+
 
 
 
