@@ -115,6 +115,9 @@ firewall-cmd --runtime-to-permanent
 echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
 sudo ls -l /var/lib/kea
 
+echo "A visualizar leases
+sudo cat /var/lib/kea/kea-leases4.csv
+
 
 
 
