@@ -97,11 +97,11 @@ cat > "$CONF_FILE" << 'EOF'
         },
         {
             "name": "domain-name",
-            "data": "srv.world"
+            "data": "empresa.local"
         },
         {
             "name": "domain-search",
-            "data": "srv.world"
+            "data": "empresa.local"
         }
     ],
     "subnet4": [
@@ -175,6 +175,7 @@ sleep 2
 echo "A visualizar leases"
 sudo cat /var/lib/kea/kea-leases4.csv
 sleep 2
+
 
 
 
