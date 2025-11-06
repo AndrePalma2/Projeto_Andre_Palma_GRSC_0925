@@ -50,7 +50,7 @@ cat > "$CONF_FILE" << 'EOF'
         {
             // specify your DNS server
             "name": "domain-name-servers",
-            "data": "10.0.0.10"
+            "data": "192.168.10.10"
         },
         {
             "name": "domain-name",
@@ -64,12 +64,12 @@ cat > "$CONF_FILE" << 'EOF'
     "subnet4": [
         {
             "id": 1,
-            "subnet": "10.0.0.0/24",
-            "pools": [ { "pool": "10.0.0.200 - 10.0.0.254" } ],
+            "subnet": "192.168.10.0/24",
+            "pools": [ { "pool": "192.168.10.100 - 192.168.10.200" } ],
             "option-data": [
                 {
                     "name": "routers",
-                    "data": "10.0.0.1"
+                    "data": "192.168.10.1"
                 }
             ]
         }
@@ -117,6 +117,7 @@ sudo ls -l /var/lib/kea
 
 echo "A visualizar leases
 sudo cat /var/lib/kea/kea-leases4.csv
+
 
 
 
