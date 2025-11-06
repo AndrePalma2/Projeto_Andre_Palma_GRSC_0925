@@ -16,65 +16,50 @@ sudo cp /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
 
 echo "Criando o arquivo de configuração do Kea DHCP..."
 
-sudo cat > /etc/kea/kea-dhcp4.conf <<EOL
-{
-  "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": [ "ens33" ]
-    },
-    "expired-leases-processing": {
-      "reclaim-timer-wait-time": 10,
-      "flush-reclaimed-timer-wait-time": 25,
-      "hold-reclaimed-time": 3600,
-      "max-reclaim-leases": 100,
-      "max-reclaim-time": 250,
-      "unwarned-reclaim-cycles": 5
-    },
-    "renew-timer": 900,
-    "rebind-timer": 1800,
-    "valid-lifetime": 3600,
-    "option-data": [
-      {
-        "name": "domain-name-servers",
-        "data": "192.168.10.10"
-      },
-      {
-        "name": "domain-name",
-        "data": "srv.world"
-      },
-      {
-        "name": "domain-search",
-        "data": "srv.world"
-      }
-    ],
-    "subnet4": [
-      {
-        "id": 1,
-        "subnet": "192.168.10.0/24",
-        "pools": [ { "pool": "192.168.10.100 - 192.168.10.200" } ],
-        "option-data": [
-          {
-            "name": "routers",
-            "data": "192.168.10.1"
-          }
-        ]
-      }
-    ],
-    "loggers": [
-      {
-        "name": "kea-dhcp4",
-        "output-options": [
-          {
-            "output": "/var/log/kea/kea-dhcp4.log"
-          }
-        ],
-        "severity": "INFO",
-        "debuglevel": 0
-      }
-    ]
-  }
-}
-EOL
+
+CONF="/etc/kea/kea-dhcp4.conf"
+
+
+# Interfaces
+sed -i 's,"interfaces": [  ],"interfaces": [ "ins33" ]' "$CONF"
+
+# DNS Servers
+sed -i 's,"name": "domain-name-servers","name": "domain-name-servers",' "$CONF"
+sed -i 's,"data": "192.0.2.1, 192.0.2.2" "data": "192.168.10.10",' "$CONF"
+
+# Domain Name (code 15 → name + data)
+sed -i 's,"code": 15,"name": "domain-name",' "$CONF"
+sed -i 's,"data": "example.org","data": "srv.world"/' "$CONF"
+
+# Domain Search
+sed -i 's,"name": "domain-search","name": "domain-search",' "$CONF"
+sed -i 's,"data": "mydomain-example.com, example.com","data": "srv.world",' "$CONF"
+
+# Subnet
+sed -i 's,"subnet": "192.0.2.0/24","subnet": "192.168.10.0/24",' "$CONF"
+
+# Pool
+sed -i 's,"pools": [ { "pool": "192.0.2.1 - 192.0.2.200" } ],"pools": [ { "pool": "192.168.10.50 - 192.168.10.200" } ],' "$CONF"
+
+# Gateway (routers)
+sed -i 's,"name": "routers","name": "routers",' "$CONF"
+sed -i 's,"data": "192.0.2.1","data": "192.168.10.1",' "$CONF"
+
+# Reservas (reservations)
+sudo sed -i 's,"ip-address": "192.0.2.201" "ip-address": "192.168.10.2",' "$CONF"
+sudo sed -i 's,"ip-address": "192.0.2.202" "ip-address": "192.168.10.101",' "$CONF"
+sudo sed -i 's,"ip-address": "192.0.2.203" "ip-address": "192.168.10.100",' "$CONF"
+sudo sed -i 's,"ip-address": "192.0.2.204" "ip-address": "192.168.10.102",' "$CONF"
+sudo sed -i 's,"ip-address": "192.0.2.205" "ip-address": "192.168.10.106",' "$CONF"
+sudo sed -i 's,"ip-address": "192.0.2.206" "ip-address": "192.168.10.105",' "$CONF"
+sudo sed -i 's,"next-server": "192.0.2.1" "next-server": "192.168.10.103",' "$CONF"
+
+# data (DNS dentro das reservas)
+sed -i 's,"data": "10.1.1.202, 10.1.1.203" "data": "8.8.8.8",' "$CONF"
+
+# logging output
+sed -i 's,"output": "kea-dhcp4.log","output": "/var/log/kea/kea-dhcp4.log",' "$CONF"
+
 
 
 echo "Alterando permissões e propriedade do arquivo de configuração..."
@@ -99,5 +84,6 @@ firewall-cmd --runtime-to-permanent
 
 echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
 sudo ls -l /var/lib/kea
+
 
 
