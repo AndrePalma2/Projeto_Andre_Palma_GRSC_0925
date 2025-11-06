@@ -10,7 +10,7 @@ echo "Instalando o Kea DHCP..."
 sudo dnf -y install kea
 sleep 2
 
-echo "Fazendo backup do arquivo de configuração original
+echo "Fazendo backup do arquivo de configuração original"
 sudo mv /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
 sleep 2
 
@@ -22,7 +22,7 @@ LOG_DIR="/var/log/kea"
 
 
 # Cria nova configuração
-echo "[INFO] Criando nova configuração em $CONF_FILE..."
+echo "Criando nova configuração em $CONF_FILE..."
 cat > "$CONF_FILE" << 'EOF'
 // create new
 {
@@ -117,9 +117,10 @@ echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes ad
 sudo ls -l /var/lib/kea
 sleep 2
 
-echo "A visualizar leases
+echo "A visualizar leases"
 sudo cat /var/lib/kea/kea-leases4.csv
 sleep 2
+
 
 
 
