@@ -18,9 +18,10 @@ fi
 
 # DEFINIÇÕES DO SERVIDOR BIND (Servidor 2)
 IP_ADDRESS="192.168.10.20/24"
-DNS_SERVER="127.0.0.1" # O BIND usa o seu próprio IP como DNS primário
+IP_LISTEN="192.168.10.20" 
+DNS_SERVER="127.0.0.1" 
 GATEWAY="192.168.10.1"
-DOMAIN="srv.world"
+DOMAIN="empresa.local"
 REVERSE_ZONE="10.168.192.in-addr.arpa"
 
 echo "Interface: $IFACE. IP Fixo: $IP_ADDRESS"
@@ -34,50 +35,52 @@ echo "====================================================="
 echo "2. CONFIGURANDO A INTERFACE $IFACE PARA $IP_ADDRESS..."
 echo "====================================================="
 
+# Configura o IP fixo 192.168.10.20
 sudo nmcli connection modify "$IFACE" ipv4.addresses "$IP_ADDRESS"
 sudo nmcli connection modify "$IFACE" ipv4.method manual
 sudo nmcli connection modify "$IFACE" ipv4.gateway "$GATEWAY"
 sudo nmcli connection modify "$IFACE" ipv4.dns "$DNS_SERVER"
 
+# Reinicia a conexão
 sudo nmcli connection down "$IFACE"
 sudo nmcli connection up "$IFACE"
 
 echo "Endereço IP aplicado: $(nmcli device show "$IFACE" | grep "IP4.ADDRESS" | awk '{print $2}')"
 sleep 2
 
-# =======================================================
-# 3. INSTALAR O BIND (Com correção para o pacote)
-# =======================================================
 
 echo "====================================================="
-echo "3. INSTALANDO O BIND E UTILITÁRIOS..."
+echo "3. INSTALANDO O BIND (se já não estiver instalado)..."
 echo "====================================================="
+
 
 sudo dnf -y update
+sudo dnf -y install bind bind-utils || { echo "Falha na instalação. Verifique a conexão."; exit 1; }
 
-# Instala bind ou bind-utils, resolvendo o erro not found
-sudo dnf -y install bind bind-utils || sudo dnf -y install bind || { echo "Falha na instalação do BIND. Verifique a conexão."; exit 1; }
 sleep 2
 
 # =======================================================
-# 4. CONFIGURAÇÃO DO BIND (named.conf)
+# 4. CONFIGURAÇÃO DO BIND (named.conf CORRIGIDO)
 # =======================================================
 
 echo "====================================================="
 echo "4. CONFIGURANDO FICHEIROS DE ZONA..."
 echo "====================================================="
 
-sudo mv /etc/named.conf /etc/named.conf.orig 
+sudo mv /etc/named.conf /etc/named.conf.orig || true 
 
 echo "Criando o ficheiro named.conf..."
 cat << EOF | sudo tee /etc/named.conf
 options {
-    listen-on port 53 { 127.0.0.1; $IP_ADDRESS; }; 
+    listen-on port 53 { 127.0.0.1; $IP_LISTEN; };
     directory       "/var/named";
     allow-query     { localhost; 192.168.10.0/24; }; 
     recursion yes;
-    dnssec-enable yes;
-    dnssec-validation yes;
+
+    # As opções de DNSSEC estão comentadas para evitar erros de sintaxe/versão (CORREÇÃO 2)
+    # dnssec-enable yes;
+    # dnssec-validation yes;
+    
     managed-keys-directory "/var/named/dynamic";
     pid-file "/run/named/named.pid";
     session-keyfile "/run/named/session.key";
@@ -85,9 +88,10 @@ options {
 };
 
 zone "." IN { type hint; file "named.ca"; };
-zone "$DOMAIN" IN {
+
+zone "$DOMAIN" IN { # NOME DE DOMÍNIO CORRIGIDO: empresa.local
     type master;
-    file "srv.world.zone"; 
+    file "empresa.local.zone"; 
     allow-update { none; };
 };
 zone "$REVERSE_ZONE" IN {
@@ -99,12 +103,12 @@ include "/etc/named.rfc1912.zones";
 include "/etc/named.root.key";
 EOF
 
-# Cria a Zona de Forward (srv.world)
-echo "Criando a Zona de Forward ($DOMAIN)..."
-cat << EOF | sudo tee /var/named/srv.world.zone
+# Cria a Zona de Forward (empresa.local.zone)
+echo "Criando o ficheiro de zona Forward ($DOMAIN)..."
+cat << EOF | sudo tee /var/named/empresa.local.zone
 \$TTL 86400
-@ IN SOA srv.world. root.srv.world. (
-    2025110602  ; Serial
+@ IN SOA $DOMAIN. root.$DOMAIN. (
+    2025110603  ; Serial (Incrementado)
     3600        ; Refresh
     1800        ; Retry
     604800      ; Expire
@@ -112,18 +116,18 @@ cat << EOF | sudo tee /var/named/srv.world.zone
 )
 
 @   IN  NS      ns.$DOMAIN.
-ns  IN  A       192.168.10.20
-srv IN  A       192.168.10.10
+ns  IN  A       192.168.10.20   ; BIND Server
+srv IN  A       192.168.10.10   ; KEA Server
 dns IN  A       192.168.10.20
-client IN A     192.168.10.100
+client IN A     192.168.10.100  ; Cliente DHCP
 EOF
 
-# Cria a Zona de Reverse (192.168.10.x)
-echo "Criando a Zona de Reverse ($REVERSE_ZONE)..."
+# Cria a Zona de Reverse (192.168.10.zone)
+echo "Criando o ficheiro de zona Reverse..."
 cat << EOF | sudo tee /var/named/192.168.10.zone
 \$TTL 86400
 @ IN SOA $DOMAIN. root.$DOMAIN. (
-    2025110602  ; Serial
+    2025110603  ; Serial (Incrementado)
     3600        ; Refresh
     1800        ; Retry
     604800      ; Expire
@@ -131,9 +135,9 @@ cat << EOF | sudo tee /var/named/192.168.10.zone
 )
 
 @   IN  NS      ns.$DOMAIN.
-10  IN  PTR     srv.$DOMAIN.      ; 192.168.10.10 (Kea Server)
-20  IN  PTR     dns.$DOMAIN.      ; 192.168.10.20 (BIND Server)
-100 IN  PTR     client.$DOMAIN.   ; 192.168.10.100 (Cliente DHCP)
+10  IN  PTR     srv.$DOMAIN.      
+20  IN  PTR     dns.$DOMAIN.      
+100 IN  PTR     client.$DOMAIN.   
 EOF
 
 # =======================================================
@@ -157,3 +161,7 @@ sudo systemctl enable --now named
 
 echo "Verificação do status do BIND:"
 sudo systemctl status named
+
+echo "-----------------------------------------------------"
+echo "CONFIGURAÇÃO BIND (192.168.10.20 / empresa.local) CONCLUÍDA."
+echo "-----------------------------------------------------"
