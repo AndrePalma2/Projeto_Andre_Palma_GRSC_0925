@@ -2,13 +2,58 @@
 
 set -e
 
-echo "Atualizando o sistema..."
-sudo dnf -y update
+
+echo "-----------------------------------------------------"
+echo "CONFIGURAÇÃO AUTOMÁTICA DO KEA DHCP4"
+echo "-----------------------------------------------------"
+read -p "Por favor, insira o NOME da interface de rede a usar (ex: ens160, eth0): " IFACE
+
+if [ -z "$IFACE" ]; then
+    echo "Erro: O nome da interface não pode estar vazio. Abortando."
+    exit 1
+fi
+
+IP_ADDRESS="192.168.10.10/24"
+GATEWAY="192.168.10.1"
+DNS_SERVER="192.168.10.10" 
+CONF_FILE="/etc/kea/kea-dhcp4.conf"
+LOG_DIR="/var/log/kea"
+
+echo "Interface selecionada: $IFACE"
+echo "IP Fixo a ser aplicado: $IP_ADDRESS"
 sleep 2
 
-echo "Instalando o Kea DHCP..."
+
+
+echo "====================================================="
+echo "CONFIGURANDO A INTERFACE $IFACE..."
+echo "====================================================="
+
+sudo nmcli connection modify "$IFACE" ipv4.addresses "$IP_ADDRESS"
+sudo nmcli connection modify "$IFACE" ipv4.method manual
+sudo nmcli connection modify "$IFACE" ipv4.gateway "$GATEWAY"
+sudo nmcli connection modify "$IFACE" ipv4.dns "$DNS_SERVER"
+
+# Aplica as novas configurações de rede
+sudo nmcli connection down "$IFACE"
+sudo nmcli connection up "$IFACE"
+
+echo "Endereço IP aplicado: $(nmcli device show "$IFACE" | grep "IP4.ADDRESS" | awk '{print $2}')"
+sleep 2
+
+
+
+
+
+echo "====================================================="
+echo "INSTALANDO E CONFIGURANDO O KEA DHCP4..."
+echo "====================================================="
+sudo dnf -y update
 sudo dnf -y install kea
 sleep 2
+
+
+
 
 echo "Fazendo backup do arquivo de configuração original"
 sudo mv /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
@@ -17,8 +62,6 @@ sleep 2
 echo "Criando o arquivo de configuração do Kea DHCP..."
 sleep 2
 
-CONF_FILE="/etc/kea/kea-dhcp4.conf"
-LOG_DIR="/var/log/kea"
 
 
 # Cria nova configuração
@@ -92,25 +135,37 @@ EOF
 sleep 2
 
 
+
+
+
+
+
+
+
+
 echo "Alterando permissões e propriedade do arquivo de configuração..."
 chown root:kea /etc/kea/kea-dhcp4.conf
 chmod 640 /etc/kea/kea-dhcp4.conf
 sleep 2
 
-echo "Habilitando e iniciando o serviço Kea DHCP..."
-systemctl enable --now kea-dhcp4
+
+echo "====================================================="
+echo "INICIANDO E HABILITANDO O SERVIÇO KEA..."
+echo "====================================================="
+sudo systemctl enable --now kea-dhcp4
 sleep 2
 
 echo "Verificando o status do Kea DHCP..."
-systemctl status kea-dhcp4 
-sleep 2
-
+sudo systemctl status kea-dhcp4 
 echo "Configuração do Kea DHCP concluída. O serviço está rodando."
 sleep 2
 
-echo "Habilitando a firewall"
-firewall-cmd --add-service=dhcp
-firewall-cmd --runtime-to-permanent
+
+echo "====================================================="
+echo "5. CONFIGURAÇÃO E ATIVAÇÃO DA FIREWALL (firewalld)"
+echo "====================================================="
+sudo firewall-cmd --add-service=dhcp
+sudo firewall-cmd --runtime-to-permanent
 sleep 2
 
 echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
@@ -120,6 +175,7 @@ sleep 2
 echo "A visualizar leases"
 sudo cat /var/lib/kea/kea-leases4.csv
 sleep 2
+
 
 
 
