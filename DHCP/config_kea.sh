@@ -93,7 +93,7 @@ cat > "$CONF_FILE" << 'EOF'
         {
             // specify your DNS server
             "name": "domain-name-servers",
-            "data": "192.168.10.10"
+            "data": "192.168.10.20"
         },
         {
             "name": "domain-name",
@@ -175,6 +175,7 @@ sleep 2
 echo "A visualizar leases"
 sudo cat /var/lib/kea/kea-leases4.csv
 sleep 2
+
 
 
 
