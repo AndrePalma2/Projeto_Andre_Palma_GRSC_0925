@@ -4,18 +4,18 @@ set -e
 
 echo "Atualizando o sistema..."
 sudo dnf -y update
-
+sleep 2
 
 echo "Instalando o Kea DHCP..."
 sudo dnf -y install kea
-
+sleep 2
 
 echo "Fazendo backup do arquivo de configuração original
 sudo mv /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
-
+sleep 2
 
 echo "Criando o arquivo de configuração do Kea DHCP..."
-
+sleep 2
 
 CONF_FILE="/etc/kea/kea-dhcp4.conf"
 LOG_DIR="/var/log/kea"
@@ -89,34 +89,37 @@ cat > "$CONF_FILE" << 'EOF'
 }
 }
 EOF
-
+sleep 2
 
 
 echo "Alterando permissões e propriedade do arquivo de configuração..."
 chown root:kea /etc/kea/kea-dhcp4.conf
 chmod 640 /etc/kea/kea-dhcp4.conf
-
+sleep 2
 
 echo "Habilitando e iniciando o serviço Kea DHCP..."
 systemctl enable --now kea-dhcp4
-
+sleep 2
 
 echo "Verificando o status do Kea DHCP..."
 systemctl status kea-dhcp4 
-
+sleep 2
 
 echo "Configuração do Kea DHCP concluída. O serviço está rodando."
-
+sleep 2
 
 echo "Habilitando a firewall"
 firewall-cmd --add-service=dhcp
 firewall-cmd --runtime-to-permanent
+sleep 2
 
 echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
 sudo ls -l /var/lib/kea
+sleep 2
 
 echo "A visualizar leases
 sudo cat /var/lib/kea/kea-leases4.csv
+sleep 2
 
 
 
