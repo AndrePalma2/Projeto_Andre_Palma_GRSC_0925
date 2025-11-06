@@ -1,188 +1,124 @@
 #!/bin/bash
-
 set -e
 
-
-echo "-----------------------------------------------------"
-echo "CONFIGURAÇÃO AUTOMÁTICA DO KEA DHCP4"
-echo "-----------------------------------------------------"
-read -p "Por favor, insira o NOME da interface de rede a usar (ex: ens160, eth0): " IFACE
+read -p "Por favor, insira o NOME da interface de rede a usar (ex: ens160): " IFACE
 
 if [ -z "$IFACE" ]; then
-    echo "Erro: O nome da interface não pode estar vazio. Abortando."
     exit 1
 fi
 
-IP_ADDRESS="192.168.10.10/24"
+IP_ADDRESS="192.168.10.20/24"
+DNS_SERVER="127.0.0.1" 
 GATEWAY="192.168.10.1"
-DNS_SERVER="192.168.10.10" 
-CONF_FILE="/etc/kea/kea-dhcp4.conf"
-LOG_DIR="/var/log/kea"
-
-echo "Interface selecionada: $IFACE"
-echo "IP Fixo a ser aplicado: $IP_ADDRESS"
-sleep 2
-
-
-
-echo "====================================================="
-echo "CONFIGURANDO A INTERFACE $IFACE..."
-echo "====================================================="
+NETWORK_CIDR="192.168.10.0/24"
+DOMAIN="empresa.local"
+REVERSE_NETWORK="10.168.192"
+REVERSE_ZONE="$REVERSE_NETWORK.in-addr.arpa"
+ZONE_FILE_FW="empresa.local.zone"
 
 sudo nmcli connection modify "$IFACE" ipv4.addresses "$IP_ADDRESS"
 sudo nmcli connection modify "$IFACE" ipv4.method manual
 sudo nmcli connection modify "$IFACE" ipv4.gateway "$GATEWAY"
 sudo nmcli connection modify "$IFACE" ipv4.dns "$DNS_SERVER"
 
-# Aplica as novas configurações de rede
 sudo nmcli connection down "$IFACE"
 sudo nmcli connection up "$IFACE"
 
-echo "Endereço IP aplicado: $(nmcli device show "$IFACE" | grep "IP4.ADDRESS" | awk '{print $2}')"
-sleep 2
+sudo mv /etc/named.conf /etc/named.conf.orig || true 
 
+cat << EOF | sudo tee /etc/named.conf
+acl "internal-network" {
+    $NETWORK_CIDR;
+};
 
+options {
+    listen-on port 53 { any; };
+    listen-on-v6 { none; };
+    directory       "/var/named";
+    dump-file       "/var/named/data/cache_dump.db";
+    statistics-file "/var/named/data/named_stats.txt";
+    memstatistics-file "/var/named/data/named_mem_stats.txt";
+    secroots-file   "/var/named/data/named.secroots";
+    recursing-file  "/var/named/data/named.recursing";
+    allow-query     { localhost; internal-network; };
+    allow-transfer  { localhost; };
+    recursion yes;
 
+    managed-keys-directory "/var/named/dynamic";
+    pid-file "/run/named/named.pid";
+    session-keyfile "/run/named/session.key";
+    include "/etc/crypto-policies/back-ends/bind.config";
+};
 
+logging {
+    channel default_debug {
+        file "data/named.run";
+        severity dynamic;
+    };
+};
 
-echo "====================================================="
-echo "INSTALANDO E CONFIGURANDO O KEA DHCP4..."
-echo "====================================================="
-sudo dnf -y update
-sudo dnf -y install kea
-sleep 2
+zone "." IN {
+    type hint;
+    file "named.ca";
+};
 
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
 
+zone "$DOMAIN" IN {
+    type master;
+    file "$ZONE_FILE_FW";
+    allow-update { none; };
+};
 
-
-echo "Fazendo backup do arquivo de configuração original"
-sudo mv /etc/kea/kea-dhcp4.conf /etc/kea/kea-dhcp4.conf.org
-sleep 2
-
-echo "Criando o arquivo de configuração do Kea DHCP..."
-sleep 2
-
-
-
-# Cria nova configuração
-echo "Criando nova configuração em $CONF_FILE..."
-cat > "$CONF_FILE" << 'EOF'
-// create new
-{
-"Dhcp4": {
-    "interfaces-config": {
-        // specify network interfaces to listen on
-        "interfaces": [ "ens160" ]
-    },
-    // settings for expired-leases (follows are default)
-    "expired-leases-processing": {
-        "reclaim-timer-wait-time": 10,
-        "flush-reclaimed-timer-wait-time": 25,
-        "hold-reclaimed-time": 3600,
-        "max-reclaim-leases": 100,
-        "max-reclaim-time": 250,
-        "unwarned-reclaim-cycles": 5
-    },
-    
-    "renew-timer": 900,
-    
-    "rebind-timer": 1800,
-    
-    "valid-lifetime": 3600,
-    "option-data": [
-        {
-            // specify your DNS server
-            "name": "domain-name-servers",
-            "data": "192.168.10.20"
-        },
-        {
-            "name": "domain-name",
-            "data": "empresa.local"
-        },
-        {
-            "name": "domain-search",
-            "data": "empresa.local"
-        }
-    ],
-    "subnet4": [
-        {
-            "id": 1,
-            "subnet": "192.168.10.0/24",
-            "pools": [ { "pool": "192.168.10.100 - 192.168.10.200" } ],
-            "option-data": [
-                {
-                    "name": "routers",
-                    "data": "192.168.10.1"
-                }
-            ]
-        }
-    ],
-    "loggers": [
-    {
-        "name": "kea-dhcp4",
-        "output-options": [
-            {
-                "output": "/var/log/kea/kea-dhcp4.log"
-            }
-        ],
-        "severity": "INFO",
-        "debuglevel": 0
-    }
-  ]
-}
-}
+zone "$REVERSE_ZONE" IN {
+    type master;
+    file "$REVERSE_NETWORK.db";
+    allow-update { none; };
+};
 EOF
-sleep 2
 
+cat << EOF | sudo tee /var/named/$ZONE_FILE_FW
+\$TTL 86400
+@ IN SOA $DOMAIN. root.$DOMAIN. (
+    2025110604
+    3600
+    1800
+    604800
+    86400
+)
 
+@   IN  NS      ns.$DOMAIN.
+ns  IN  A       192.168.10.20
+srv IN  A       192.168.10.10
+dns IN  A       192.168.10.20
+client IN A     192.168.10.100
+EOF
 
+cat << EOF | sudo tee /var/named/$REVERSE_NETWORK.db
+\$TTL 86400
+@ IN SOA $DOMAIN. root.$DOMAIN. (
+    2025110604
+    3600
+    1800
+    604800
+    86400
+)
 
+@   IN  NS      ns.$DOMAIN.
+10  IN  PTR     srv.$DOMAIN.      
+20  IN  PTR     dns.$DOMAIN.      
+100 IN  PTR     client.$DOMAIN.   
+EOF
 
+echo 'OPTIONS="-4"' | sudo tee -a /etc/sysconfig/named
 
+sudo chown named:named /var/named/*.db /var/named/*.zone
+sudo restorecon -Rv /var/named
 
+sudo firewall-cmd --permanent --add-service=dns
+sudo firewall-cmd --reload
 
+sudo systemctl enable --now named
 
-
-echo "Alterando permissões e propriedade do arquivo de configuração..."
-chown root:kea /etc/kea/kea-dhcp4.conf
-chmod 640 /etc/kea/kea-dhcp4.conf
-sleep 2
-
-
-echo "====================================================="
-echo "INICIANDO E HABILITANDO O SERVIÇO KEA..."
-echo "====================================================="
-sudo systemctl enable --now kea-dhcp4
-sleep 2
-
-echo "Verificando o status do Kea DHCP..."
-sudo systemctl status kea-dhcp4 
-echo "Configuração do Kea DHCP concluída. O serviço está rodando."
-sleep 2
-
-
-echo "====================================================="
-echo "5. CONFIGURAÇÃO E ATIVAÇÃO DA FIREWALL (firewalld)"
-echo "====================================================="
-sudo firewall-cmd --add-service=dhcp
-sudo firewall-cmd --runtime-to-permanent
-sleep 2
-
-echo "Lista os arquivos e diretórios no diretório /var/lib/kea com detalhes adicionais"
-sudo ls -l /var/lib/kea
-sleep 2
-
-echo "A visualizar leases"
-sudo cat /var/lib/kea/kea-leases4.csv
-sleep 2
-
-
-
-
-
-
-
-
-
-
-
+sudo systemctl status named | head -n 5
