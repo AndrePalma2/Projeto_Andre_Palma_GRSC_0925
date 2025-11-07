@@ -59,7 +59,7 @@ sleep 2
 
 # Cria nova configuração
 echo "Criando nova configuração em $CONF_FILE..."
-cat > "$CONF_FILE" << 'EOF'
+cat > "$CONF_FILE" << EOF
 {
 "Dhcp4": {
     "interfaces-config": {
@@ -139,4 +139,5 @@ sudo ls -l /var/lib/kea
 
 echo "Conteúdo do arquivo /var/lib/kea/kea-leases4.csv:"
 cat /var/lib/kea/kea-leases4.csv
+
 
