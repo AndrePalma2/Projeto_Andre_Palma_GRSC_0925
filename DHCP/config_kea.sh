@@ -135,7 +135,8 @@ firewall-cmd --runtime-to-permanent
 
 # Verificar os arquivos de leases IPv4 no diretório /var/lib/kea
 echo "Verificando os arquivos de leases no diretório /var/lib/kea:"
-ll /var/lib/kea
+sudo ls -l /var/lib/kea
 
 echo "Conteúdo do arquivo /var/lib/kea/kea-leases4.csv:"
 cat /var/lib/kea/kea-leases4.csv
+
