@@ -11,7 +11,7 @@ if [ -z "$IFACE" ]; then
     exit 1
 fi
 
-IP_ADDRESS="192.168.10.20/24"  # Definindo apenas um IP
+IP_ADDRESS="192.168.10.10/24"  # Definindo apenas um IP
 DNS_SERVER="192.168.10.10"
 GATEWAY="192.168.10.1"
 CONF_FILE="/etc/kea/kea-dhcp4.conf"
@@ -139,5 +139,6 @@ sudo ls -l /var/lib/kea
 
 echo "Conteúdo do arquivo /var/lib/kea/kea-leases4.csv:"
 cat /var/lib/kea/kea-leases4.csv
+
 
 
