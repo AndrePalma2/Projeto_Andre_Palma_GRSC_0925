@@ -84,7 +84,7 @@ options {
     managed-keys-directory "/var/named/dynamic";
     pid-file "/run/named/named.pid";
     session-keyfile "/run/named/session.key";
-    include "/etc/crypto/mkeys.asc";
+  # include "/etc/crypto/mkeys.asc";
 };
 
 zone "." IN { type hint; file "named.ca"; };
