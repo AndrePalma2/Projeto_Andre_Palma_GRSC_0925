@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+
+sudo yum install -y openssh-server
+
+echo "Habilitando o sshd"
+sudo systemctl start sshd
+sudo systemctl enable sshd
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+
+echo "A iniciar as configurações"
+sudo sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config
+sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+sudo sed -i 's/#MaxSessions 10/MaxSessions 10,MaxStartups 10,/' /etc/ssh/sshd_config
+sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes,/' /etc/ssh/sshd_config
+sudo sed -i 's/#PermitEmptyPasswords/PermitEmptyPasswords/' /etc/ssh/sshd_config
+sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+sudo sed -i 's|#AuthorizedKeysFile .ssh/authorized_keys|AuthorizedKeysFile .ssh/authorized_keys|' /etc/ssh/sshd_config
+
+sudo systemctl reload sshd
+
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+echo "A gerar uma chave pública"
+sudo ssh-keygen -t rsa -f "$HOME/.ssh/id_rsa" -q -N ""
+echo "A chave criada na pasta ~/.ssh/id_rsa.pub."
+
+cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
+
+chmod 600 "$HOME/.ssh/authorized_keys"
+
+sudo systemctl reload sshd
+sudo systemctl status sshd
+
+echo "Reiniciando sshd"
+sudo systemctl restart sshd
+
+echo "Configuração ssh feita"
